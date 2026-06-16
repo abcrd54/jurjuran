@@ -1,0 +1,35 @@
+services:
+  backend:
+    build: .
+    container_name: gen-video-backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./output:/app/output
+      - ./uploads:/app/uploads
+      - ./temp:/app/temp
+    ports:
+      - "8000:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    network_mode: bridge
+
+  telegram-bot:
+    build: .
+    container_name: gen-video-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      BACKEND_URL: http://host.docker.internal:8000
+    command: python bot.py
+    volumes:
+      - ./output:/app/output
+      - ./uploads:/app/uploads
+      - ./temp:/app/temp
+    depends_on:
+      - backend
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    network_mode: bridge
