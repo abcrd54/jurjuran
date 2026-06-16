@@ -5,6 +5,14 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+FONT_PATHS = [
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+    "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+    "/usr/share/fonts/TTF/DejaVuSans-Bold.ttf",
+    "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
+    "C\\\\:/Windows/Fonts/arialbd.ttf",
+]
+
 
 def get_ffmpeg_path() -> str:
     try:
@@ -17,8 +25,15 @@ def get_ffmpeg_path() -> str:
 def get_font_path() -> str:
     if platform.system() == "Windows":
         return "C\\\\:/Windows/Fonts/arialbd.ttf"
-    else:
-        return "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+    
+    import os
+    for path in FONT_PATHS:
+        if os.path.exists(path):
+            logger.info(f"Using font: {path}")
+            return path
+    
+    logger.warning("No font found, using default")
+    return ""
 
 
 def get_media_duration(path: Path) -> float:
@@ -106,14 +121,23 @@ def create_text_clip(
     font_path = get_font_path()
     safe_text = text.replace("'", "\u2019").replace(":", " ")
 
-    vf = (
-        f"drawtext=text='{safe_text}'"
-        f":fontfile='{font_path}'"
-        f":fontsize={font_size}"
-        f":fontcolor={color}"
-        f":borderw=2:bordercolor=black"
-        f":x=(w-text_w)/2:y={y_position}"
-    )
+    if font_path:
+        vf = (
+            f"drawtext=text='{safe_text}'"
+            f":fontfile='{font_path}'"
+            f":fontsize={font_size}"
+            f":fontcolor={color}"
+            f":borderw=2:bordercolor=black"
+            f":x=(w-text_w)/2:y={y_position}"
+        )
+    else:
+        vf = (
+            f"drawtext=text='{safe_text}'"
+            f":fontsize={font_size}"
+            f":fontcolor={color}"
+            f":borderw=2:bordercolor=black"
+            f":x=(w-text_w)/2:y={y_position}"
+        )
 
     subprocess.run(
         [

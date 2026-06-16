@@ -5,7 +5,12 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     fonts-dejavu-core \
+    fonts-dejavu-extra \
+    fonts-freefont-ttf \
     fonts-liberation \
+    fonts-noto-cjk \
+    fontconfig \
+    && fc-cache -fv \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
