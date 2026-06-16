@@ -1,5 +1,6 @@
 import logging
 import subprocess
+import platform
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -11,6 +12,13 @@ def get_ffmpeg_path() -> str:
         return imageio_ffmpeg.get_ffmpeg_exe()
     except Exception:
         return "ffmpeg"
+
+
+def get_font_path() -> str:
+    if platform.system() == "Windows":
+        return "C\\\\:/Windows/Fonts/arialbd.ttf"
+    else:
+        return "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 
 
 def get_media_duration(path: Path) -> float:
@@ -95,11 +103,12 @@ def create_text_clip(
     y_position: str = "(h-text_h)/2",
 ) -> Path:
     ffmpeg = get_ffmpeg_path()
+    font_path = get_font_path()
     safe_text = text.replace("'", "\u2019").replace(":", " ")
 
     vf = (
         f"drawtext=text='{safe_text}'"
-        f":fontfile='C\\\\:/Windows/Fonts/arialbd.ttf'"
+        f":fontfile='{font_path}'"
         f":fontsize={font_size}"
         f":fontcolor={color}"
         f":borderw=2:bordercolor=black"

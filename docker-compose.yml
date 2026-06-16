@@ -9,11 +9,7 @@ services:
       - ./output:/app/output
       - ./uploads:/app/uploads
       - ./temp:/app/temp
-    ports:
-      - "8000:8000"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    network_mode: bridge
+    network_mode: host
 
   telegram-bot:
     build: .
@@ -22,7 +18,7 @@ services:
     env_file:
       - .env
     environment:
-      BACKEND_URL: http://host.docker.internal:8000
+      BACKEND_URL: http://127.0.0.1:8000
     command: python bot.py
     volumes:
       - ./output:/app/output
@@ -30,6 +26,4 @@ services:
       - ./temp:/app/temp
     depends_on:
       - backend
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    network_mode: bridge
+    network_mode: host
