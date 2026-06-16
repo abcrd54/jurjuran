@@ -5,13 +5,8 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-FONT_PATHS = [
-    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-    "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
-    "/usr/share/fonts/TTF/DejaVuSans-Bold.ttf",
-    "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
-    "C\\\\:/Windows/Fonts/arialbd.ttf",
-]
+BASE_DIR = Path(__file__).parent.parent
+FONT_DIR = BASE_DIR / "assets" / "fonts"
 
 
 def get_ffmpeg_path() -> str:
@@ -23,16 +18,17 @@ def get_ffmpeg_path() -> str:
 
 
 def get_font_path() -> str:
+    font_file = FONT_DIR / "arialbd.ttf"
+    if font_file.exists():
+        return str(font_file).replace("\\", "/")
+    
+    font_file = FONT_DIR / "arial.ttf"
+    if font_file.exists():
+        return str(font_file).replace("\\", "/")
+    
     if platform.system() == "Windows":
         return "C\\\\:/Windows/Fonts/arialbd.ttf"
     
-    import os
-    for path in FONT_PATHS:
-        if os.path.exists(path):
-            logger.info(f"Using font: {path}")
-            return path
-    
-    logger.warning("No font found, using default")
     return ""
 
 

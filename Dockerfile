@@ -4,13 +4,7 @@ WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
-    fonts-dejavu-core \
-    fonts-dejavu-extra \
-    fonts-freefont-ttf \
-    fonts-liberation \
-    fonts-noto-cjk \
     fontconfig \
-    && fc-cache -fv \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
@@ -18,7 +12,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-RUN mkdir -p temp output uploads assets/fonts
+RUN mkdir -p temp output uploads
+RUN fc-cache -fv
 
 EXPOSE 8000
 
