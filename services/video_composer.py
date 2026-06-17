@@ -115,12 +115,13 @@ def create_text_clip(
 ) -> Path:
     ffmpeg = get_ffmpeg_path()
     font_path = get_font_path()
-    safe_text = text.replace("'", "\u2019").replace(":", " ")
+    safe_text = text.replace("'", "\u2019").replace(":", " ").replace("\\", "/")
 
     if font_path:
+        escaped_font = font_path.replace(":", "\\:").replace("'", "\\'")
         vf = (
             f"drawtext=text='{safe_text}'"
-            f":fontfile='{font_path}'"
+            f":fontfile={escaped_font}"
             f":fontsize={font_size}"
             f":fontcolor={color}"
             f":borderw=2:bordercolor=black"
@@ -135,7 +136,7 @@ def create_text_clip(
             f":x=(w-text_w)/2:y={y_position}"
         )
 
-    subprocess.run(
+    result = subprocess.run(
         [
             ffmpeg, "-y",
             "-f", "lavfi", "-i",
@@ -144,8 +145,12 @@ def create_text_clip(
             "-c:v", "libx264", "-preset", "fast", "-pix_fmt", "yuv420p",
             "-an", str(output_path),
         ],
-        capture_output=True, check=True,
+        capture_output=True, text=True,
     )
+    if result.returncode != 0:
+        logger.error(f"FFmpeg drawtext error: {result.stderr[-500:]}")
+        logger.error(f"VF: {vf}")
+        raise subprocess.CalledProcessError(result.returncode, result.args, result.stdout, result.stderr)
     return output_path
 
 
