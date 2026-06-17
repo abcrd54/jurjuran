@@ -28,42 +28,64 @@ def get_ffmpeg_path() -> str:
         return "ffmpeg"
 
 
+def _split_text_to_lines(text: str, max_chars_per_line: int = 35) -> str:
+    words = text.split()
+    lines = []
+    current_line = []
+
+    for word in words:
+        test_line = " ".join(current_line + [word])
+        if len(test_line) <= max_chars_per_line:
+            current_line.append(word)
+        else:
+            if current_line:
+                lines.append(" ".join(current_line))
+            current_line = [word]
+
+    if current_line:
+        lines.append(" ".join(current_line))
+
+    return "\\N".join(lines[:2])
+
+
 def build_captions_from_timestamps(
-    word_timings: list[dict],
-    segment_duration: float = 1.8,
+    timings: list[dict],
+    segment_duration: float = 2.0,
     time_offset: float = 0.0,
 ) -> list[dict]:
-    if not word_timings:
+    if not timings:
         return []
 
     captions = []
     current_words = []
     current_start = None
 
-    for timing in word_timings:
+    for timing in timings:
         if current_start is None:
-            current_start = max(0, timing["offset"] - 0.1)
+            current_start = max(0, timing["offset"])
 
         current_words.append(timing["text"])
         current_duration = (timing["offset"] + timing["duration"]) - current_start
 
         if current_duration >= segment_duration:
             end_time = timing["offset"] + timing["duration"]
+            text = " ".join(current_words)
             captions.append({
                 "start": round(current_start + time_offset, 3),
                 "end": round(end_time + time_offset, 3),
-                "text": " ".join(current_words),
+                "text": _split_text_to_lines(text),
             })
             current_words = []
             current_start = None
 
     if current_words:
-        last = word_timings[-1]
+        last = timings[-1]
         end_time = last["offset"] + last["duration"]
+        text = " ".join(current_words)
         captions.append({
             "start": round(current_start + time_offset, 3),
             "end": round(end_time + time_offset, 3),
-            "text": " ".join(current_words),
+            "text": _split_text_to_lines(text),
         })
 
     return captions
@@ -72,7 +94,7 @@ def build_captions_from_timestamps(
 def split_script_to_captions(
     script: str,
     total_duration: float,
-    words_per_caption: int = 6,
+    words_per_caption: int = 8,
 ) -> list[dict]:
     words = script.split()
     if not words:
@@ -80,7 +102,8 @@ def split_script_to_captions(
 
     segments = []
     for i in range(0, len(words), words_per_caption):
-        segments.append(" ".join(words[i : i + words_per_caption]))
+        segment = " ".join(words[i : i + words_per_caption])
+        segments.append(segment)
 
     time_per_segment = total_duration / len(segments)
     captions = []
@@ -90,7 +113,7 @@ def split_script_to_captions(
         captions.append({
             "start": round(start, 3),
             "end": round(end, 3),
-            "text": text,
+            "text": _split_text_to_lines(text),
         })
 
     return captions

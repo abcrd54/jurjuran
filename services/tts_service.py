@@ -7,6 +7,24 @@ from config import TTS_VOICE, TTS_RATE
 logger = logging.getLogger(__name__)
 
 
+def _split_sentence_to_words(sentence_text: str, start: float, duration: float) -> list[dict]:
+    words = sentence_text.split()
+    if not words:
+        return []
+
+    word_duration = duration / len(words)
+    timings = []
+
+    for i, word in enumerate(words):
+        timings.append({
+            "text": word,
+            "offset": start + (i * word_duration),
+            "duration": word_duration,
+        })
+
+    return timings
+
+
 async def generate_tts(
     text: str,
     output_path: Path,
@@ -56,8 +74,17 @@ async def generate_tts_with_timestamps(
         for chunk in audio_chunks:
             f.write(chunk)
 
-    timings = word_timings if word_timings else sentence_timings
-    timing_type = "word" if word_timings else "sentence"
+    if word_timings:
+        timings = word_timings
+        timing_type = "word"
+    elif sentence_timings:
+        timings = []
+        for sent in sentence_timings:
+            timings.extend(_split_sentence_to_words(sent["text"], sent["offset"], sent["duration"]))
+        timing_type = "word (from sentence)"
+    else:
+        timings = []
+        timing_type = "none"
 
     logger.info(f"TTS saved: {len(timings)} {timing_type} timings")
 

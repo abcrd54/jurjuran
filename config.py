@@ -75,7 +75,7 @@ CAPTION_POSITION_Y = 100
 
 CAPTION_STYLES = {
     "modern": {
-        "font_size": 44,
+        "font_size": 52,
         "bold": True,
         "border_style": 3,
         "outline": 2,
@@ -83,7 +83,7 @@ CAPTION_STYLES = {
         "back_color": "&H96000000",
     },
     "clean": {
-        "font_size": 38,
+        "font_size": 48,
         "bold": False,
         "border_style": 1,
         "outline": 2,
@@ -91,7 +91,7 @@ CAPTION_STYLES = {
         "back_color": "&H80000000",
     },
     "bold": {
-        "font_size": 48,
+        "font_size": 56,
         "bold": True,
         "border_style": 3,
         "outline": 3,
@@ -99,7 +99,7 @@ CAPTION_STYLES = {
         "back_color": "&HA0000000",
     },
     "minimal": {
-        "font_size": 32,
+        "font_size": 42,
         "bold": False,
         "border_style": 1,
         "outline": 1,
