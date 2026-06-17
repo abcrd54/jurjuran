@@ -33,13 +33,15 @@ async def generate_video(
     voice: str = Form(default=TTS_VOICE),
     template: str = Form(default=DEFAULT_TEMPLATE),
     aspect_ratio: str = Form(default=DEFAULT_ASPECT_RATIO),
+    request_id: str = Form(default=None),
 ):
     if template not in TEMPLATES:
         raise HTTPException(400, f"Template '{template}' tidak tersedia. Pilih: {list(TEMPLATES.keys())}")
     if aspect_ratio not in ASPECT_RATIOS:
         raise HTTPException(400, f"Aspect ratio '{aspect_ratio}' tidak tersedia. Pilih: {list(ASPECT_RATIOS.keys())}")
 
-    request_id = uuid.uuid4().hex[:12]
+    if not request_id:
+        request_id = uuid.uuid4().hex[:12]
     work_dir = TEMP_DIR / request_id
     work_dir.mkdir(parents=True, exist_ok=True)
     tracker = progress_manager.create(request_id)

@@ -1,6 +1,7 @@
 import os
 import asyncio
 import logging
+import uuid
 import httpx
 from pathlib import Path
 from datetime import datetime
@@ -213,13 +214,17 @@ async def _start_generation(query, uid, context):
     voice = state.get("voice", "id-ID-ArdiNeural")
     music_path = state.get("music_path")
 
+    request_id = uuid.uuid4().hex[:12]
+
     progress_msg = await context.bot.send_message(
         chat_id=query.message.chat_id,
         text=f"{_progress_bar(0)}\n⏳ Memulai proses...",
         parse_mode="Markdown",
     )
 
-    poll_task = None
+    poll_task = asyncio.create_task(
+        _poll_progress(context, query.message.chat_id, progress_msg.message_id, request_id)
+    )
 
     try:
         async with httpx.AsyncClient(timeout=300) as client:
@@ -238,15 +243,10 @@ async def _start_generation(query, uid, context):
                     "voice": voice,
                     "template": template,
                     "aspect_ratio": ratio,
+                    "request_id": request_id,
                 },
                 files=files if files else None,
             )
-
-            request_id = resp.headers.get("X-Request-ID", "")
-            if request_id:
-                poll_task = asyncio.create_task(
-                    _poll_progress(context, query.message.chat_id, progress_msg.message_id, request_id)
-                )
 
         if resp.status_code == 200:
             video_path = Path(f"temp/tg_{uid}_{datetime.now().strftime('%H%M%S')}.mp4")
