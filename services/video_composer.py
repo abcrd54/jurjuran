@@ -290,17 +290,20 @@ async def compose_video(
     clips = []
 
     if product_info and product_info.get("name"):
-        intro_path = work_dir / "intro.mp4"
-        name = product_info["name"][:50]
-        create_text_clip(name, intro_path, intro_duration, width, height, font_size=52)
-        clips.append(intro_path)
+        try:
+            intro_path = work_dir / "intro.mp4"
+            name = product_info["name"][:50]
+            create_text_clip(name, intro_path, intro_duration, width, height, font_size=52)
+            clips.append(intro_path)
 
-        price = product_info.get("price", "")
-        if price and price != "Harga tidak tersedia":
-            price_path = work_dir / "price_intro.mp4"
-            create_text_clip(price, price_path, 1.5, width, height, font_size=64, color="yellow",
-                           y_position="(h-text_h)/2+80")
-            clips.append(price_path)
+            price = product_info.get("price", "")
+            if price and price != "Harga tidak tersedia":
+                price_path = work_dir / "price_intro.mp4"
+                create_text_clip(price, price_path, 1.5, width, height, font_size=64, color="yellow",
+                               y_position="(h-text_h)/2+80")
+                clips.append(price_path)
+        except Exception as e:
+            logger.warning(f"Failed to create intro text: {e}, skipping intro")
 
     if videos:
         video_clip_path = work_dir / "video_part.mp4"
