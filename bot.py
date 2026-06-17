@@ -151,6 +151,60 @@ async def _ask_voice(query, uid):
     )
 
 
+def _progress_bar(percent: int, length: int = 10) -> str:
+    filled = int(length * percent / 100)
+    empty = length - filled
+    bar = "█" * filled + "░" * empty
+    return f"[{bar}] {percent}%"
+
+
+async def _poll_progress(context: ContextTypes.DEFAULT_TYPE, chat_id: int, message_id: int, request_id: str):
+    async with httpx.AsyncClient(timeout=10) as client:
+        last_percent = -1
+        for _ in range(120):
+            try:
+                resp = await client.get(f"{BACKEND_URL}/api/progress/{request_id}")
+                if resp.status_code == 200:
+                    data = resp.json()
+                    percent = int(data.get("progress", 0))
+                    step = data.get("step", "")
+                    message = data.get("message", "")
+
+                    if percent != last_percent:
+                        step_emoji = {
+                            "scrape": "🔍",
+                            "script": "✍️",
+                            "tts": "🎤",
+                            "media": "📥",
+                            "compose": "🎬",
+                            "caption": "📝",
+                            "done": "✅",
+                            "error": "❌",
+                        }.get(step, "⏳")
+
+                        text = (
+                            f"{step_emoji} *Memproses video...*\n\n"
+                            f"{_progress_bar(percent)}\n"
+                            f"{message}\n"
+                        )
+                        try:
+                            await context.bot.edit_message_text(
+                                chat_id=chat_id,
+                                message_id=message_id,
+                                text=text,
+                                parse_mode="Markdown",
+                            )
+                        except Exception:
+                            pass
+                        last_percent = percent
+
+                    if data.get("step") in ("done", "error"):
+                        break
+            except Exception:
+                pass
+            await asyncio.sleep(2)
+
+
 async def _start_generation(query, uid, context):
     state = user_state.get(uid, {})
     url = state.get("url")
@@ -159,15 +213,13 @@ async def _start_generation(query, uid, context):
     voice = state.get("voice", "id-ID-ArdiNeural")
     music_path = state.get("music_path")
 
-    await query.edit_message_text(
-        f"⏳ *Memproses video...*\n\n"
-        f"🔗 Link: `{url[:50]}...`\n"
-        f"📋 Template: {template}\n"
-        f"📐 Ratio: {ratio}\n"
-        f"🎤 Voice: {voice.split('-')[-1]}\n\n"
-        f"Proses ini butuh 1-2 menit. Sabar ya!",
+    progress_msg = await context.bot.send_message(
+        chat_id=query.message.chat_id,
+        text=f"{_progress_bar(0)}\n⏳ Memulai proses...",
         parse_mode="Markdown",
     )
+
+    poll_task = None
 
     try:
         async with httpx.AsyncClient(timeout=300) as client:
@@ -178,11 +230,6 @@ async def _start_generation(query, uid, context):
                     open(music_path, "rb"),
                     "audio/mpeg",
                 )
-
-            await context.bot.send_message(
-                chat_id=query.message.chat_id,
-                text="🔄 Memproses video... Mohon tunggu 1-2 menit.",
-            )
 
             resp = await client.post(
                 f"{BACKEND_URL}/api/generate",
@@ -195,11 +242,24 @@ async def _start_generation(query, uid, context):
                 files=files if files else None,
             )
 
+            request_id = resp.headers.get("X-Request-ID", "")
+            if request_id:
+                poll_task = asyncio.create_task(
+                    _poll_progress(context, query.message.chat_id, progress_msg.message_id, request_id)
+                )
+
         if resp.status_code == 200:
             video_path = Path(f"temp/tg_{uid}_{datetime.now().strftime('%H%M%S')}.mp4")
             video_path.parent.mkdir(exist_ok=True)
             video_path.write_bytes(resp.content)
             size_mb = len(resp.content) / 1024 / 1024
+
+            await context.bot.edit_message_text(
+                chat_id=query.message.chat_id,
+                message_id=progress_msg.message_id,
+                text=f"{_progress_bar(100)}\n✅ Video selesai!",
+                parse_mode="Markdown",
+            )
 
             if size_mb > 50:
                 await context.bot.send_message(
@@ -231,6 +291,8 @@ async def _start_generation(query, uid, context):
         )
 
     finally:
+        if poll_task and not poll_task.done():
+            poll_task.cancel()
         if music_path and Path(music_path).exists():
             Path(music_path).unlink(missing_ok=True)
         user_state.pop(uid, None)

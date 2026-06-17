@@ -289,7 +289,6 @@ async def compose_video(
     zoom_max = template.get("zoom_max", 1.08)
     transition = template.get("transition", "fade")
     color_grading = template.get("color_grading", "eq=brightness=0.02:saturation=1.1:contrast=1.05")
-    intro_duration = template.get("intro_duration", 3.5)
 
     vo_duration = get_audio_duration(voiceover_path)
     total_duration = min(max(vo_duration, VIDEO_MIN_DURATION), VIDEO_MAX_DURATION)
@@ -298,22 +297,6 @@ async def compose_video(
                 f"{width}x{height}, template={transition}, duration={total_duration:.1f}s")
 
     clips = []
-
-    if product_info and product_info.get("name"):
-        try:
-            intro_path = work_dir / "intro.mp4"
-            name = product_info["name"][:50]
-            create_text_clip(name, intro_path, intro_duration, width, height, font_size=52)
-            clips.append(intro_path)
-
-            price = product_info.get("price", "")
-            if price and price != "Harga tidak tersedia":
-                price_path = work_dir / "price_intro.mp4"
-                create_text_clip(price, price_path, 1.5, width, height, font_size=64, color="yellow",
-                               y_position="(h-text_h)/2+80")
-                clips.append(price_path)
-        except Exception as e:
-            logger.warning(f"Failed to create intro text: {e}, skipping intro")
 
     if videos:
         video_clip_path = work_dir / "video_part.mp4"

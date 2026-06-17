@@ -103,10 +103,9 @@ async def generate_video(
         tracker.details["video_duration"] = round(duration, 1)
 
         tracker.update(Step.CAPTION, "Menambahkan caption...")
-        intro_offset = template_config["intro_duration"] if product_info.get("name") else 0
         if word_timings:
             captions = build_captions_from_timestamps(
-                word_timings, segment_duration=1.8, time_offset=intro_offset
+                word_timings, segment_duration=1.8, time_offset=0
             )
         else:
             captions = split_script_to_captions(script, duration, words_per_caption=6)
@@ -119,11 +118,14 @@ async def generate_video(
         tracker.finish()
         tracker.details["output_file"] = output_filename
 
-        return FileResponse(
+        from fastapi.responses import Response
+        response = FileResponse(
             path=output_path,
             media_type="video/mp4",
             filename=output_filename,
         )
+        response.headers["X-Request-ID"] = request_id
+        return response
 
     except HTTPException:
         raise
