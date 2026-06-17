@@ -1,6 +1,7 @@
 import logging
 import subprocess
 import platform
+import shutil
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -17,19 +18,20 @@ def get_ffmpeg_path() -> str:
         return "ffmpeg"
 
 
-def get_font_path() -> str:
-    font_file = FONT_DIR / "arialbd.ttf"
-    if font_file.exists():
-        return str(font_file).replace("\\", "/")
-    
-    font_file = FONT_DIR / "arial.ttf"
-    if font_file.exists():
-        return str(font_file).replace("\\", "/")
-    
-    if platform.system() == "Windows":
-        return "C\\\\:/Windows/Fonts/arialbd.ttf"
-    
-    return ""
+def get_font_path() -> str | None:
+    candidates = [
+        FONT_DIR / "arialbd.ttf",
+        FONT_DIR / "arial.ttf",
+        Path("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"),
+        Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"),
+    ]
+    for f in candidates:
+        if f.exists():
+            path_str = str(f).replace("\\", "/")
+            if platform.system() == "Windows":
+                path_str = path_str.replace(":", "\\:")
+            return path_str
+    return None
 
 
 def get_media_duration(path: Path) -> float:
@@ -115,26 +117,27 @@ def create_text_clip(
 ) -> Path:
     ffmpeg = get_ffmpeg_path()
     font_path = get_font_path()
-    safe_text = text.replace("'", "\u2019").replace(":", " ").replace("\\", "/")
+
+    safe_text = (text
+        .replace("\\", "/")
+        .replace("'", "\u2019")
+        .replace(":", " ")
+        .replace("%", "%%"))
+
+    parts = [
+        f"drawtext=text='{safe_text}'",
+        f"fontsize={font_size}",
+        f"fontcolor={color}",
+        "borderw=2",
+        "bordercolor=black",
+        f"x=(w-text_w)/2",
+        f"y={y_position}",
+    ]
 
     if font_path:
-        escaped_font = font_path.replace(":", "\\:").replace("'", "\\'")
-        vf = (
-            f"drawtext=text='{safe_text}'"
-            f":fontfile={escaped_font}"
-            f":fontsize={font_size}"
-            f":fontcolor={color}"
-            f":borderw=2:bordercolor=black"
-            f":x=(w-text_w)/2:y={y_position}"
-        )
-    else:
-        vf = (
-            f"drawtext=text='{safe_text}'"
-            f":fontsize={font_size}"
-            f":fontcolor={color}"
-            f":borderw=2:bordercolor=black"
-            f":x=(w-text_w)/2:y={y_position}"
-        )
+        parts.insert(1, f"fontfile='{font_path}'")
+
+    vf = ":".join(parts)
 
     result = subprocess.run(
         [
@@ -148,8 +151,7 @@ def create_text_clip(
         capture_output=True, text=True,
     )
     if result.returncode != 0:
-        logger.error(f"FFmpeg drawtext error: {result.stderr[-500:]}")
-        logger.error(f"VF: {vf}")
+        logger.error(f"FFmpeg drawtext failed: {result.stderr[-500:]}")
         raise subprocess.CalledProcessError(result.returncode, result.args, result.stdout, result.stderr)
     return output_path
 
@@ -158,7 +160,6 @@ def concat_with_xfade(clips: list[Path], output_path: Path, fade_dur: float = 0.
     ffmpeg = get_ffmpeg_path()
 
     if len(clips) == 1:
-        import shutil
         shutil.copy2(clips[0], output_path)
         return output_path
 
@@ -330,7 +331,6 @@ async def compose_video(
 
     video_parts_path = work_dir / "video_parts.mp4"
     if len(clips) == 1:
-        import shutil
         shutil.copy2(clips[0], video_parts_path)
     else:
         try:
