@@ -11,6 +11,12 @@ logger = logging.getLogger(__name__)
 
 
 def get_ffmpeg_path() -> str:
+    import platform
+    if platform.system() != "Windows":
+        from pathlib import Path
+        system_path = Path("/usr/bin/ffmpeg")
+        if system_path.exists():
+            return str(system_path)
     import shutil
     system_ffmpeg = shutil.which("ffmpeg")
     if system_ffmpeg:

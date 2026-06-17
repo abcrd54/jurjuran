@@ -11,6 +11,11 @@ FONT_DIR = BASE_DIR / "assets" / "fonts"
 
 
 def get_ffmpeg_path() -> str:
+    import platform
+    if platform.system() != "Windows":
+        system_path = Path("/usr/bin/ffmpeg")
+        if system_path.exists():
+            return str(system_path)
     import shutil
     system_ffmpeg = shutil.which("ffmpeg")
     if system_ffmpeg:
