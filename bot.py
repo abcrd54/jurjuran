@@ -179,6 +179,11 @@ async def _start_generation(query, uid, context):
                     "audio/mpeg",
                 )
 
+            await context.bot.send_message(
+                chat_id=query.message.chat_id,
+                text="🔄 Memproses video... Mohon tunggu 1-2 menit.",
+            )
+
             resp = await client.post(
                 f"{BACKEND_URL}/api/generate",
                 data={
@@ -196,11 +201,20 @@ async def _start_generation(query, uid, context):
             video_path.write_bytes(resp.content)
             size_mb = len(resp.content) / 1024 / 1024
 
-            await context.bot.send_video(
-                chat_id=query.message.chat_id,
-                video=open(video_path, "rb"),
-                caption=f"✅ Video selesai!\n\n📋 Template: {template}\n📐 Ratio: {ratio}\n💾 Size: {size_mb:.1f} MB",
-            )
+            if size_mb > 50:
+                await context.bot.send_message(
+                    chat_id=query.message.chat_id,
+                    text=f"⚠️ Video terlalu besar ({size_mb:.1f} MB). Telegram limit 50MB.\n\nVideo tersimpan di server.",
+                )
+            else:
+                with open(video_path, "rb") as video_file:
+                    await context.bot.send_video(
+                        chat_id=query.message.chat_id,
+                        video=video_file,
+                        caption=f"✅ Video selesai!\n\n📋 Template: {template}\n📐 Ratio: {ratio}\n💾 Size: {size_mb:.1f} MB",
+                        read_timeout=120,
+                        write_timeout=120,
+                    )
             video_path.unlink(missing_ok=True)
         else:
             error = resp.text[:200]
