@@ -28,13 +28,15 @@ async def generate_tts_with_timestamps(
     voice: str = TTS_VOICE,
     rate: str = TTS_RATE,
 ) -> tuple[Path, list[dict]]:
-    logger.info(f"Generating TTS with word timestamps")
+    logger.info(f"Generating TTS with word timestamps (edge-tts {edge_tts.__version__})")
 
     communicate = edge_tts.Communicate(text, voice, rate=rate)
     word_timings = []
     audio_chunks = []
+    chunk_count = 0
 
     async for chunk in communicate.stream():
+        chunk_count += 1
         if chunk["type"] == "audio":
             audio_chunks.append(chunk["data"])
         elif chunk["type"] == "WordBoundary":
@@ -43,11 +45,17 @@ async def generate_tts_with_timestamps(
                 "offset": chunk["offset"] / 10_000_000,
                 "duration": chunk["duration"] / 10_000_000,
             })
+            if len(word_timings) <= 3:
+                logger.info(f"WordBoundary: {chunk['text']} offset={chunk['offset']/10_000_000:.3f}")
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "wb") as f:
         for chunk in audio_chunks:
             f.write(chunk)
 
-    logger.info(f"TTS saved with {len(word_timings)} word timings: {output_path}")
+    logger.info(f"TTS saved: {len(audio_chunks)} audio chunks, {chunk_count} total, {len(word_timings)} word timings")
+    
+    if not word_timings:
+        logger.warning("No WordBoundary events received - captions will use estimated timing")
+
     return output_path, word_timings
